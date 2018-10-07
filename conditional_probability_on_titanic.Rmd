@@ -1,0 +1,200 @@
+---
+title: "Exploring Titanic Data using tools from Probability"
+author: "Batch 42 - INSOFE"
+date: "15 April 2018"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+
+# The Titanic Dataset
+
+## Import and Understand the Dataset
+
+![Data Description](img/titanic_data_description.png)
+
+* Read in the "titanic.csv" data file provided to you pass in the vector c(" ", "") to the na.strings argument in the read.csv() function
+
+```{r}
+
+titanic <- read.csv("titanic.csv", na.strings = c(" ",""))
+
+```
+
+__Exercise :__ Read the R help document page and understand why we need to pass in blank values("") to the na.strings argument
+
+* Understand the structure and summary of your dataset
+
+```{r}
+
+head(titanic)
+
+str(titanic)
+
+summary(titanic)
+
+```
+
+## Handle Missing Values
+
+* Look at the number of missing values column wise using the colSums() function in conjunction with the is.na() function
+
+```{r}
+
+colSums(is.na(titanic))
+
+```
+
+### Imputing Missing Values
+
+* Today we will be using the centralImputation() function from the DMwR package to replace missing values
+
+```{r}
+
+library(DMwR)
+
+titanic <- centralImputation(titanic)
+
+colSums(is.na(titanic))
+
+```
+
+__Exercise :__ Read the R help document page for the centralImputation() and centralValue() functions and understand what central tendencies are used to replace missing values
+
+* Before we proceed further let's save some useful attributes from the dataset
+
+* In general, we will use the terms observations and rows; columns and variables interchangeably
+
+
+```{r}
+
+no_obs <- nrow(titanic)
+
+no_vars <- ncol(titanic)
+
+```
+
+# Marginal Probability
+
+* Marginal probability is a likelihood measure for a single event, irrespective of other events occuring
+
+$$P(X = Men) = \frac{Number\ of\ Men}{Total\ Number\ of\ Observations}$$
+
+* So, let us compute some basic marginal probabilities from the titanic dataset using the dplyr library
+
+__1. If you pick a person aboard the titanic at random, what is the probability that he/she survived?__
+
+```{r warning=FALSE}
+
+library(dplyr)
+
+titanic %>% 
+  summarise(prob_survived = sum(Survived)/n())
+
+```
+
+__2. If you pick a person aboard the titanic at random, what is the probability that the person's gender is female?__
+
+```{r}
+
+titanic %>% 
+  filter(Sex =="female") %>% 
+  summarise(sum(Survived)/no_obs)
+
+```
+
+__3. If you pick a person aboard the titanic at random, calculate the probability that the person belongs to each of the levels in the `Embarked` column?__
+
+```{r}
+
+titanic %>% 
+  group_by(Embarked) %>%
+  summarise(prob = n() / no_obs)
+
+```
+
+
+# Joint Probability
+
+* Joint probability is a likelihood measure useful when we are interested in the occurance of two events happening together
+
+$$P(A,B) = P({A}\textbf{|} {B}) \times P(B)$$
+
+![](img/joint_prob.png)
+
+__1. If you pick a person aboard the titanic at random, what is the probability that the person is a male and also belongs to the 3rd Class (Pclass = 3)?__
+
+```{r}
+
+titanic %>% 
+  filter(Sex == "male", Pclass==3) %>% 
+  summarise(length(PassengerId)/no_obs)
+
+```
+
+__2. If you pick a person aboard the titanic at random, what is the probability that a first class passenger (Pclass = 1) embarked the journey from Q?__
+
+```{r}
+
+titanic %>%
+  filter (Pclass == 1,Embarked=="Q") %>%
+  summarise("prob_class1_embarked_Q" = n()/no_obs)
+```
+
+__3. If you pick a person aboard the titanic at random, what is the probability that the passenger paid less than 25$ and survived?__
+
+```{r}
+
+titanic %>%
+  filter (Survived == 1,Fare<25) %>%
+  summarise("prob_survived_paid_less_than_25$" = n()/no_obs)
+
+```
+
+
+# Conditional probability
+
+* Conditional probability is a likelihood measure of an event occuring given that another event has occured
+
+$$P(X\ |\ Y) = \frac{P(X, Y)}{P(Y)}$$
+
+* Most generic conditional probability questions look like the following question :
+
+__1. Given that a person bought a ticket of class 1 (Pclass), calculate the probability that they embarked in one of the ports?__
+
+```{r}
+
+pclass1_obs <- nrow(titanic %>% filter(Pclass==1))
+
+titanic %>% 
+  filter(Pclass==1) %>% 
+  group_by(Embarked) %>% 
+  summarise("prob_embarked_pclass1" = n()/pclass1_obs)
+
+```
+
+* In the real world however, the questions would sound more like the following :
+
+__2. Mrs. Saunders boarded in S, what is the probability that she belongs to `Pclass` 1?__
+
+```{r}
+
+titanic %>%
+  filter(Embarked == "S") %>%
+  mutate(first_class_pass = ifelse(Pclass == 1, 1, 0)) %>%
+  summarise(prob_first_class = sum(first_class_pass) / n())
+
+```
+
+__3. Mr. Musk has atleast one of his siblings (SibSp) aboard the titanic, what is the pobability that Mr. Musk survived?__
+
+```{r}
+
+titanic %>%
+  filter(SibSp >= 1)%>%
+  summarise(prob=sum(Survived)/n())
+
+```
+
